@@ -1,0 +1,46 @@
+{
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build",
+    "devPath": "http://localhost:5173",
+    "distDir": "../dist"
+  },
+  "package": {
+    "productName": "post-translator",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "clipboard": {
+        "all": true
+      },
+      "dialog": {
+        "open": true
+      },
+      "fs": {
+        "all": true
+      },
+      "path": {
+        "all": true
+      },
+      "shell": {
+        "open": true
+      }
+    },
+    "windows": [
+      {
+        "title": "post-translator",
+        "width": 1400,
+        "height": 900
+      }
+    ],
+    "security": {
+      "csp": null
+    },
+    "bundle": {
+      "active": false,
+      "targets": "all",
+      "identifier": "com.pythonblogger.translator"
+    }
+  }
+}

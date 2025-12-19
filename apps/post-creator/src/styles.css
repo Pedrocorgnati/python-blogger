@@ -1,0 +1,88 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  font-family: 'Space Grotesk', ui-sans-serif, system-ui;
+  background: radial-gradient(circle at top, #111827 0%, #0b1324 45%, #05070f 100%);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #f97316 transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #f97316;
+  border-radius: 999px;
+}
+
+input,
+textarea,
+select {
+  color-scheme: dark;
+}
+
+.glass {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  backdrop-filter: blur(12px);
+}
+
+.card {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  box-shadow: 0 16px 40px rgba(2, 6, 23, 0.35);
+  border-radius: 20px;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition;
+}
+
+.btn-primary {
+  @apply bg-coral text-white hover:bg-orange-500;
+}
+
+.btn-ghost {
+  @apply bg-white/10 text-white hover:bg-white/20;
+}
+
+.btn-outline {
+  @apply border border-white/20 text-white hover:border-white/40;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.badge {
+  @apply rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-widest text-white/70;
+}
+
+.input {
+  @apply w-full rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-coral/70;
+}
+
+.textarea {
+  @apply w-full rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-coral/70;
+}
+
+.section-title {
+  @apply text-lg font-semibold text-white;
+}
+
+.subtle {
+  @apply text-sm text-white/60;
+}

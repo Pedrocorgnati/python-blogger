@@ -1,0 +1,11 @@
+{
+  "name": "python-blogger-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "creator:dev": "pnpm --filter post-creator tauri dev",
+    "translator:dev": "pnpm --filter post-translator tauri dev",
+    "creator:build": "pnpm --filter post-creator tauri build",
+    "translator:build": "pnpm --filter post-translator tauri build"
+  }
+}
