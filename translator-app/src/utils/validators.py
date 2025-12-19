@@ -1,36 +1,13 @@
 from __future__ import annotations
 
-from typing import List, Dict
 import json
-from pathlib import Path
-from jsonschema import Draft7Validator
 import re
+from pathlib import Path
+from typing import Dict, List
 from urllib.parse import urlparse
 
-from core.models import GlobalInputs, LocaleContent
+from jsonschema import Draft7Validator
 from utils.logger import error as log_error
-
-
-def validate_inputs(global_inputs: GlobalInputs, locale_contents: List[LocaleContent], channels: List[str]) -> List[str]:
-    issues: List[str] = []
-    if not global_inputs.translation_key.strip():
-        issues.append("Translation key is required.")
-    if not global_inputs.blog_url.strip():
-        issues.append("Blog URL is required.")
-    if not any(item.content.strip() for item in locale_contents if item.locale == "en"):
-        issues.append("English content is required.")
-    if not channels:
-        issues.append("Select at least one channel.")
-    return issues
-
-
-def infer_title_from_content(content: str) -> str:
-    lines = [line.strip() for line in content.splitlines() if line.strip()]
-    if not lines:
-        return ""
-    if lines[0].startswith("#"):
-        return lines[0].lstrip("#").strip()
-    return lines[0]
 
 
 def validate_blog_url(value: str) -> bool:
@@ -64,3 +41,8 @@ def validate_content_package(payload: Dict[str, object], schema_path: str | Path
         path = ".".join([str(item) for item in err.path]) or "root"
         errors.append(f"{path}: {err.message}")
     return errors
+
+
+def detect_accent_warning(text: str) -> bool:
+    accents = "áéíóúãõçñàèìòùâêîôû"
+    return any(char in text.lower() for char in accents)

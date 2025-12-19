@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from typing import Dict, List
-import os
+import json
+from pathlib import Path
 
 from PySide6.QtWidgets import (
     QButtonGroup,
@@ -35,6 +36,13 @@ from profile_kit.bio_storage import save_bios_json, save_bios_md, save_runtime_c
 from utils.clipboard import copy_to_clipboard
 from utils.io import save_all_prompts, save_per_channel, save_results_templates, load_content_package
 from utils.logger import info, warn, error
+from utils.paths import (
+    ensure_app_dirs,
+    get_app_root,
+    get_data_dir,
+    get_outputs_dir,
+    get_repo_schema_path
+)
 from utils.validators import infer_title_from_content, validate_inputs, validate_blog_url, validate_slug
 
 
@@ -44,18 +52,18 @@ class MainWindow(QWidget):
         self.setWindowTitle("distribution-prompt-builder")
         self.resize(1200, 860)
 
-        self.outputs_dir = "outputs/distribution-prompts"
-        self.profile_data_path = "data/profiles.json"
-        self.profile_json_path = "profile-kit/bios.json"
-        self.profile_md_path = "profile-kit/bios.md"
-        self.profile_export_dir = "outputs/profile-kit"
-        self.schema_path = os.path.join("..", "schemas", "content_package.schema.json")
+        self.outputs_dir = get_outputs_dir() / "distribution-prompts"
+        self.profile_data_path = get_data_dir() / "profiles.json"
+        self.profile_json_path = get_app_root() / "profile-kit" / "bios.json"
+        self.profile_md_path = get_app_root() / "profile-kit" / "bios.md"
+        self.profile_export_dir = get_outputs_dir() / "profile-kit"
+        self.schema_path = get_repo_schema_path()
 
-        for directory in ["outputs", "data", "profile-kit", "logs"]:
-            os.makedirs(directory, exist_ok=True)
+        ensure_app_dirs()
+        (get_app_root() / "profile-kit").mkdir(parents=True, exist_ok=True)
 
         self.bio_kit: BioKit = load_bio_kit(self.profile_data_path)
-        if not os.path.exists(self.profile_data_path):
+        if not self.profile_data_path.exists():
             save_runtime_copy(self.profile_data_path, self.bio_kit)
 
         self.translation_key = QLineEdit()
@@ -117,11 +125,16 @@ class MainWindow(QWidget):
 
         self.locale_tabs = QTabWidget()
         self.locale_inputs: Dict[str, Dict[str, QTextEdit | QLineEdit]] = {}
+        self.locale_meta: Dict[str, Dict[str, object]] = {}
         self._setup_locale_tabs()
 
 
         self.generate_button = QPushButton("Generate posts")
         self.generate_button.clicked.connect(self.handle_generate)
+        self.save_draft_button = QPushButton("Save Draft")
+        self.save_draft_button.clicked.connect(self.handle_save_draft)
+        self.load_draft_button = QPushButton("Load Draft")
+        self.load_draft_button.clicked.connect(self.handle_load_draft)
 
         self.copy_button = QPushButton("Copy everything")
         self.copy_button.clicked.connect(self.handle_copy)
@@ -163,6 +176,8 @@ class MainWindow(QWidget):
         layout.addWidget(self._build_style_group())
 
         button_row = QHBoxLayout()
+        button_row.addWidget(self.load_draft_button)
+        button_row.addWidget(self.save_draft_button)
         button_row.addWidget(self.generate_button)
         button_row.addStretch(1)
         layout.addLayout(button_row)
@@ -231,6 +246,7 @@ class MainWindow(QWidget):
                 "description": description_input,
                 "content": content_input
             }
+            self.locale_meta[locale] = {"tags": [], "category": "", "keywords": []}
 
             form.addRow("Title", title_input)
             form.addRow("Description", description_input)
@@ -417,7 +433,10 @@ class MainWindow(QWidget):
                 locale=locale,
                 title=title,
                 description=description,
-                content=content
+                content=content,
+                tags=self.locale_meta.get(locale, {}).get("tags", []),
+                category=str(self.locale_meta.get(locale, {}).get("category", "")),
+                keywords=self.locale_meta.get(locale, {}).get("keywords", [])
             )
         return contents
 
@@ -460,6 +479,17 @@ class MainWindow(QWidget):
                     "Missing locales",
                     "Separate accounts mode expects all locales. Missing content: "
                     + ", ".join([loc.upper() for loc in missing_locales])
+                )
+                return
+            missing_descriptions = [
+                locale for locale, item in locale_contents.items() if not item.description.strip()
+            ]
+            if missing_descriptions:
+                QMessageBox.critical(
+                    self,
+                    "Missing descriptions",
+                    "Descriptions are required for all locales: "
+                    + ", ".join([loc.upper() for loc in missing_descriptions])
                 )
                 return
 
@@ -514,7 +544,11 @@ class MainWindow(QWidget):
             path = save_all_prompts(self.outputs_dir, global_inputs.translation_key, bundle_results)
         else:
             path = save_all_prompts(self.outputs_dir, global_inputs.translation_key, self._last_prompts)
-        save_results_templates("outputs/distribution-results", global_inputs.translation_key, self._selected_channels())
+        save_results_templates(
+            get_outputs_dir() / "distribution-results",
+            global_inputs.translation_key,
+            self._selected_channels()
+        )
         QMessageBox.information(self, "Saved", f"Saved to {path}")
 
     def handle_save_per_channel(self) -> None:
@@ -523,8 +557,127 @@ class MainWindow(QWidget):
             return
         global_inputs = self._collect_global_inputs()
         paths = save_per_channel(self.outputs_dir, global_inputs.translation_key, self._bundle_by_channel)
-        save_results_templates("outputs/distribution-results", global_inputs.translation_key, self._selected_channels())
+        save_results_templates(
+            get_outputs_dir() / "distribution-results",
+            global_inputs.translation_key,
+            self._selected_channels()
+        )
         QMessageBox.information(self, "Saved", "Saved files:\n" + "\n".join(paths))
+
+    def handle_save_draft(self) -> None:
+        global_inputs = self._collect_global_inputs()
+        if not global_inputs.translation_key:
+            QMessageBox.warning(self, "Missing key", "Translation key is required to save a draft.")
+            return
+        data = {
+            "global": {
+                "translationKey": global_inputs.translation_key,
+                "author": global_inputs.author,
+                "blogUrl": global_inputs.blog_url,
+                "postSlugs": {
+                    "en": global_inputs.post_slug_en,
+                    "pt": global_inputs.post_slug_pt,
+                    "es": global_inputs.post_slug_es,
+                    "it": global_inputs.post_slug_it
+                },
+                "linkPolicy": global_inputs.link_policy,
+                "affiliateDisclosure": global_inputs.affiliate_disclosure,
+                "distributionMode": global_inputs.distribution_mode,
+                "linkedinGenerateComment": global_inputs.linkedin_generate_comment,
+                "linkedinCtaPolicy": global_inputs.linkedin_cta_policy,
+                "tone": global_inputs.tone,
+                "persona": global_inputs.persona,
+                "length": global_inputs.length
+            },
+            "affiliate": {
+                "en": self.affiliate_en.text().strip(),
+                "pt": self.affiliate_pt.text().strip(),
+                "es": self.affiliate_es.text().strip(),
+                "it": self.affiliate_it.text().strip()
+            },
+            "channels": self._selected_channels(),
+            "locales": {
+                locale: {
+                    "title": self.locale_inputs[locale]["title"].text(),
+                    "description": self.locale_inputs[locale]["description"].text(),
+                    "content": self.locale_inputs[locale]["content"].toPlainText(),
+                    "tags": self.locale_meta[locale]["tags"],
+                    "category": self.locale_meta[locale]["category"],
+                    "keywords": self.locale_meta[locale]["keywords"]
+                }
+                for locale in ["en", "pt", "es", "it"]
+            }
+        }
+        draft_dir = get_data_dir() / "drafts"
+        draft_dir.mkdir(parents=True, exist_ok=True)
+        path = draft_dir / f"{global_inputs.translation_key}-distributor.json"
+        try:
+            with path.open("w", encoding="utf-8") as handle:
+                json.dump(data, handle, indent=2)
+            info(f"Draft saved to {path}")
+            QMessageBox.information(self, "Saved", f"Draft saved to {path}")
+        except Exception as exc:
+            error(f"Failed to save draft to {path}: {exc}")
+            QMessageBox.critical(self, "Save error", f"Failed to save draft: {exc}")
+
+    def handle_load_draft(self) -> None:
+        draft_dir = get_data_dir() / "drafts"
+        file_name, _ = QFileDialog.getOpenFileName(
+            self, "Load Draft", str(draft_dir), "JSON Files (*.json)"
+        )
+        if not file_name:
+            return
+        target = Path(file_name)
+        try:
+            with target.open("r", encoding="utf-8") as handle:
+                data = json.load(handle)
+        except Exception as exc:
+            error(f"Failed to load draft from {target}: {exc}")
+            QMessageBox.critical(self, "Load error", f"Failed to load draft: {exc}")
+            return
+
+        global_data = data.get("global", {})
+        self.translation_key.setText(global_data.get("translationKey", ""))
+        self.author.setText(global_data.get("author", ""))
+        self.blog_url.setText(global_data.get("blogUrl", ""))
+        slugs = global_data.get("postSlugs", {})
+        self.post_slug_en.setText(slugs.get("en", ""))
+        self.post_slug_pt.setText(slugs.get("pt", ""))
+        self.post_slug_es.setText(slugs.get("es", ""))
+        self.post_slug_it.setText(slugs.get("it", ""))
+        self.link_policy.setCurrentText(global_data.get("linkPolicy", "No links"))
+        self.affiliate_disclosure.setChecked(global_data.get("affiliateDisclosure", False))
+        self.tone.setText(global_data.get("tone", self.tone.text()))
+        self.persona.setText(global_data.get("persona", self.persona.text()))
+        self.length.setCurrentText(global_data.get("length", "standard").capitalize())
+        self.linkedin_generate_comment.setChecked(global_data.get("linkedinGenerateComment", True))
+        self.linkedin_cta_policy.setCurrentText(global_data.get("linkedinCtaPolicy", "Link in comments"))
+
+        if global_data.get("distributionMode") == "single":
+            self.distribution_single.setChecked(True)
+        else:
+            self.distribution_separate.setChecked(True)
+
+        affiliate = data.get("affiliate", {})
+        self.affiliate_en.setText(affiliate.get("en", ""))
+        self.affiliate_pt.setText(affiliate.get("pt", ""))
+        self.affiliate_es.setText(affiliate.get("es", ""))
+        self.affiliate_it.setText(affiliate.get("it", ""))
+
+        locales = data.get("locales", {})
+        for locale in ["en", "pt", "es", "it"]:
+            loc = locales.get(locale, {})
+            self.locale_inputs[locale]["title"].setText(loc.get("title", ""))
+            self.locale_inputs[locale]["description"].setText(loc.get("description", ""))
+            self.locale_inputs[locale]["content"].setPlainText(loc.get("content", ""))
+            self.locale_meta[locale]["tags"] = loc.get("tags", []) or []
+            self.locale_meta[locale]["category"] = loc.get("category", "") or ""
+            self.locale_meta[locale]["keywords"] = loc.get("keywords", []) or []
+
+        channels = data.get("channels", [])
+        for name, checkbox in self.channel_checks.items():
+            checkbox.setChecked(name in channels)
+        info(f"Draft loaded from {file_name}")
 
     def _render_outputs(self, channels: List[str], locale_contents: Dict[str, LocaleContent]) -> None:
         self.output_tabs.clear()
@@ -670,11 +823,11 @@ class MainWindow(QWidget):
         QMessageBox.information(self, "Reset", "Profile kit reset to defaults.")
 
     def _export_profile_json(self) -> None:
-        save_bios_json(f"{self.profile_export_dir}/bios.json", self.bio_kit)
+        save_bios_json(self.profile_export_dir / "bios.json", self.bio_kit)
         QMessageBox.information(self, "Exported", "Profile kit JSON exported.")
 
     def _export_profile_md(self) -> None:
-        save_bios_md(f"{self.profile_export_dir}/bios.md", self.bio_kit)
+        save_bios_md(self.profile_export_dir / "bios.md", self.bio_kit)
         QMessageBox.information(self, "Exported", "Profile kit MD exported.")
 
     def _generate_bio_prompt_language(self) -> None:
@@ -711,7 +864,11 @@ class MainWindow(QWidget):
         for locale in ["en", "pt", "es", "it"]:
             loc = locales.get(locale, {})
             self.locale_inputs[locale]["title"].setText(loc.get("title", ""))
+            self.locale_inputs[locale]["description"].setText(loc.get("description", ""))
             self.locale_inputs[locale]["content"].setPlainText(loc.get("content", ""))
+            self.locale_meta[locale]["tags"] = loc.get("tags", []) or []
+            self.locale_meta[locale]["category"] = loc.get("category", "") or ""
+            self.locale_meta[locale]["keywords"] = loc.get("keywords", []) or []
             slug = loc.get("slug", "")
             if locale == "en":
                 self.post_slug_en.setText(slug)
@@ -721,4 +878,14 @@ class MainWindow(QWidget):
                 self.post_slug_es.setText(slug)
             if locale == "it":
                 self.post_slug_it.setText(slug)
+            affiliate = loc.get("affiliate", {})
+            if affiliate.get("url"):
+                if locale == "en":
+                    self.affiliate_en.setText(affiliate.get("url", ""))
+                if locale == "pt":
+                    self.affiliate_pt.setText(affiliate.get("url", ""))
+                if locale == "es":
+                    self.affiliate_es.setText(affiliate.get("url", ""))
+                if locale == "it":
+                    self.affiliate_it.setText(affiliate.get("url", ""))
         info("Content package imported.")

@@ -28,6 +28,12 @@ pip install -r requirements.txt
 python src/main.py
 ```
 
+Run from the monorepo root (after installing deps):
+
+```bash
+python apps/desktop/python-blogger/distribution-prompt-builder/src/main.py
+```
+
 ## Workflow
 
 1. Paste EN/PT/ES/IT content (titles/description optional).
@@ -44,7 +50,7 @@ LinkedIn options:
 ## JSON schema
 
 The app supports importing a content package JSON validated against:
-`../schemas/content_package.schema.json`
+`<repo_root>/schemas/content_package.schema.json`
 
 Use the mock generator scripts in `mock_creator/` and `mock_translator/` to produce valid JSON for testing.
 
@@ -64,9 +70,14 @@ How it connects:
 - Bios are used as voice reference only (not pasted verbatim in posts).
 
 Storage:
-- `profile-kit/bios.json` and `profile-kit/bios.md`
+- `profile-kit/bios.json` and `profile-kit/bios.md` (inside the app root)
 - runtime copy: `data/profiles.json`
 - exports: `outputs/profile-kit/`
+
+Base folders (inside the app root):
+- Outputs: `outputs/`
+- Drafts/data: `data/`
+- Logs: `logs/errors.log`
 
 Exports:
 - JSON: `outputs/profile-kit/bios.json`

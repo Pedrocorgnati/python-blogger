@@ -1,6 +1,6 @@
 # mock_creator
 
-Simula o output do Creator (EN only) em JSON compatível com `schemas/content_package.schema.json`.
+Simula o output do Creator (EN only) em JSON compatível com `<repo_root>/schemas/content_package.schema.json`.
 
 ## Run
 

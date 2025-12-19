@@ -1,6 +1,6 @@
 # mock_translator
 
-Simula o output do Translator (EN + PT/ES/IT) em JSON compatível com `schemas/content_package.schema.json`.
+Simula o output do Translator (EN + PT/ES/IT) em JSON compatível com `<repo_root>/schemas/content_package.schema.json`.
 
 ## Run
 

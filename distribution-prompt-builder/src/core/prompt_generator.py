@@ -118,7 +118,7 @@ def _link_rules(global_inputs: GlobalInputs, channel: str, config) -> Tuple[bool
         and global_inputs.link_policy == "Blog link + optional affiliate link (non-Reddit/Quora only)"
     )
 
-    if channel in ("Reddit", "Quora") and not global_inputs.allow_affiliate_override:
+    if channel in ("Reddit", "Quora"):
         allow_affiliate = False
 
     if channel == "LinkedIn" and global_inputs.linkedin_cta_policy == "No links":
@@ -156,6 +156,9 @@ def _build_bundle_prompt(
                     f"Writer profile (do not repeat verbatim, use as voice reference): {bio_text}",
                     f"Title: {content.title}",
                     f"Description: {content.description}",
+                    f"Category: {content.category or 'N/A'}",
+                    f"Tags: {', '.join(content.tags) if content.tags else 'N/A'}",
+                    f"Keywords: {', '.join(content.keywords) if content.keywords else 'N/A'}",
                     f"Content: {content.content}",
                     f"Blog link for this locale: {blog_link or 'N/A'}",
                     f"Affiliate link for this locale: {affiliate_link or 'N/A'}"
@@ -300,6 +303,9 @@ def _build_prompt_text(
         f"LinkedIn first comment: {first_comment_rule}\n"
         f"Title: {locale_content.title}\n"
         f"Description: {locale_content.description}\n"
+        f"Category: {locale_content.category or 'N/A'}\n"
+        f"Tags: {', '.join(locale_content.tags) if locale_content.tags else 'N/A'}\n"
+        f"Keywords: {', '.join(locale_content.keywords) if locale_content.keywords else 'N/A'}\n"
         "Content source:\n"
         f"{locale_content.content}\n\n"
         f"{comment_rule}\n\n"

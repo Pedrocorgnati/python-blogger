@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
-import os
+from pathlib import Path
 from typing import Dict
 
+from PySide6.QtWidgets import QMessageBox
+
 from .bio_models import BioEntry, BioKit, CHANNELS, LOCALES
+from utils.logger import error as log_error
 
 
 def default_bio_entry(locale: str, channel: str) -> BioEntry:
@@ -34,9 +37,15 @@ def default_bio_kit() -> BioKit:
     return BioKit(profiles=profiles)
 
 
-def load_bio_kit(path: str) -> BioKit:
-    if not os.path.exists(path):
+def load_bio_kit(path: str | Path) -> BioKit:
+    target = Path(path)
+    if not target.exists():
         return default_bio_kit()
-    with open(path, "r", encoding="utf-8") as handle:
-        data = json.load(handle)
-    return BioKit.from_dict(data)
+    try:
+        with target.open("r", encoding="utf-8") as handle:
+            data = json.load(handle)
+        return BioKit.from_dict(data)
+    except Exception as exc:
+        log_error(f"Failed to load bio kit from {target}: {exc}")
+        QMessageBox.critical(None, "Load error", f"Failed to load bios: {exc}")
+        return default_bio_kit()

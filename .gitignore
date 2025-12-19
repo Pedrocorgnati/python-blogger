@@ -18,5 +18,11 @@ __pycache__/
 /distribution-prompt-builder/data
 /distribution-prompt-builder/profile-kit
 /distribution-prompt-builder/logs
+/creator-app/outputs
+/creator-app/data
+/creator-app/logs
+/translator-app/outputs
+/translator-app/data
+/translator-app/logs
 /mock_creator/sample_creator_output.json
 /mock_translator/sample_translator_output.json

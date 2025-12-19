@@ -33,6 +33,9 @@ class LocaleContent:
     title: str
     description: str
     content: str
+    tags: List[str] = field(default_factory=list)
+    category: str = ""
+    keywords: List[str] = field(default_factory=list)
 
 
 @dataclass
