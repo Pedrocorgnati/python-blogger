@@ -32,21 +32,20 @@ def _log_warning(message: str) -> None:
 
 
 def get_repo_schema_path() -> Path:
-    repo_root = find_repo_root()
-    if repo_root:
-        schema_path = repo_root / "schemas" / "content_package.schema.json"
+    # Prefer the nearest schemas/content_package.schema.json up the tree.
+    start = get_app_root()
+    for candidate in [start, *start.parents]:
+        schema_path = candidate / "schemas" / "content_package.schema.json"
         if schema_path.exists():
             return schema_path
-    else:
-        schema_path = get_app_root() / "schemas" / "content_package.schema.json"
 
     fallback = get_app_root() / "schemas" / "content_package.schema.json"
     if fallback.exists():
         _log_warning(f"Repo schema not found. Using app-local schema at {fallback}")
         return fallback
 
-    _log_warning(f"Schema not found. Expected {schema_path}")
-    return schema_path
+    _log_warning(f"Schema not found. Expected {fallback}")
+    return fallback
 
 
 def get_outputs_dir() -> Path:
